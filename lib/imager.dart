@@ -61,6 +61,9 @@ class _ImagerState extends State<Imager> {
                       developer.log("onTap");
                       widget.parentOnTap();
                     },
+                    onLongPress: () {
+                      developer.log("onLongPress");
+                    },
                     child: Align(
                         alignment: AlignmentDirectional.bottomStart,
                         child: FittedBox(

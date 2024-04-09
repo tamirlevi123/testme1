@@ -19,7 +19,7 @@ class StepCandidate {
     // ! there's a problem with this code (see below)
     final id = data['id'];
     final title = data['title'];
-    final imageurl = data['image_url'];
+    final imageurl = data['image_url'].toString().replaceFirst("https", "http");
 
     return StepCandidate(id: id, title: title, imageurl: imageurl);
   }
@@ -52,9 +52,7 @@ class Steppy {
 
   factory Steppy.fromJson(Map<String, dynamic> data) {
     final stepId = data['step_number'];
-    final candidates = data['step_candidates'];
-    final allowBoth = data['allow_both_selection'];
-    final allowNone = data['allow_none_selection'];
+    final candidates = [data['first_candidate'], data['second_candidate']];
 
     List<StepCandidate> itemsList = List<StepCandidate>.from(candidates
         .map<StepCandidate>((dynamic i) => StepCandidate.fromJson(i)));
@@ -62,8 +60,8 @@ class Steppy {
     return Steppy(
         stepId: stepId,
         candidates: itemsList,
-        allowBoth: allowBoth,
-        allowNone: allowNone);
+        allowBoth: true,
+        allowNone: true);
   }
 }
 

@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
+//import 'dart:js';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_gif/flutter_gif.dart';
-import 'package:uuid/uuid.dart';
+import 'package:http/io_client.dart';
 import 'package:flutter/material.dart';
 import 'package:testme1/imager.dart';
 import 'dart:developer' as developer;
@@ -10,8 +12,15 @@ import 'package:http/http.dart' as http;
 import 'package:testme1/step_candidate.dart';
 
 void main() {
+  final context = SecurityContext.defaultContext;
+  context.allowLegacyUnsafeRenegotiation = true;
+  final httpClient = HttpClient(context: context);
+  ioclient = IOClient(httpClient);
+
   runApp(const MyApp());
 }
+
+IOClient ioclient = IOClient(HttpClient());
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -68,9 +77,6 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
   void startGame() async {
 // Create uuid object
-
-    uuid = const Uuid().v4().toString();
-    developer.log("uuid=$uuid");
 
     final response = await http.post(
       Uri.parse(
@@ -137,17 +143,22 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 //    String temp = 'http://3.68.66.11/api/v1/play/$gameId/$stepId';
     developer.log('At tempFunction temp=$temp');
 
-    String brr = jsonEncode(<String, String>{
-      'selection_type': idx < 0 ? 'none' : 'one',
-      'is_undo': 'false',
-      'selected_number': idx < 0 ? '0' : idx.toString(),
-      'step_number': stepId.toString(),
-    });
+    String selectionType = 'none';
+    if (idx == 0) selectionType = 'first';
+    if (idx == 1) selectionType = 'second';
+
+    Map<String, Object> tempMap = {
+      'selection_type': selectionType,
+      'is_bingo': false,
+    };
+
+    String brr = jsonEncode(tempMap);
 
     final response = await http.post(
-      Uri.parse(temp),
-      body: brr,
-    );
+        Uri.parse(
+            'https://tqyqkizxh5.execute-api.eu-central-1.amazonaws.com/Dev/game/$gameId/play/$stepId'),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        body: brr);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       // If the server did return a OK response,
@@ -167,7 +178,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
     var delay = after.difference(before);
     int millis = 0;
-    if (delay.inMilliseconds < 1500) millis = 1500 - delay.inMilliseconds;
+    if (delay.inMilliseconds < 600) millis = 600 - delay.inMilliseconds;
     Future.delayed(Duration(milliseconds: millis), () {
       setState(() {
         lastClicked = -1;
