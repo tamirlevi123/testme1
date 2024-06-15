@@ -779,10 +779,18 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                                       child: Image.network(_toBack[0].imageurl),
                                     ),
                                     SizedBox(
-                                      height: 50,
-                                      width: 50,
-                                      child: Image.network(_toBack[1].imageurl),
-                                    )
+                                        height: 50,
+                                        width: 50,
+                                        child: IconButton(
+                                          highlightColor:
+                                              Colors.orange.withOpacity(0.5),
+                                          icon: Image.network(
+                                              _toBack[1].imageurl),
+                                          onPressed: () {
+                                            mylog(
+                                                "You tapped the go back first image.");
+                                          },
+                                        ))
                                   ]),
                               Flex(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -804,7 +812,23 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                                   ])
                             ]))
                           ],
+                          if (!hideButtons && stepId > 5) ...[
+                            const Spacer(),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: Size.zero, // Set this
+                                padding: const EdgeInsetsDirectional.all(
+                                    2.0), // and this
+                              ),
+                              onPressed: () {
+                                developer.log('End game pressed!');
+                                showEndGameDialog(0);
+                              },
+                              child: const Text('End Game'),
+                            )
+                          ],
                           if (!hideButtons && stepId > 0) ...[
+                            const Spacer(),
                             (IconButton(
                               highlightColor: Colors.orange.withOpacity(0.3),
                               icon: Image.asset("assets/images/scales.png"),
@@ -814,7 +838,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                                 stepFunction(-1);
                               },
                             ))
-                          ]
+                          ],
                         ],
                       )),
                       if (!hideButtons)
@@ -866,5 +890,46 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
   void tempOnChanged(bool? value) {
     mylog("tempOnChanged value=$value");
+  }
+
+  void showEndGameDialog(int i) {
+    mylog("showEndGameDialog i=$i");
+    bool isScrrrenTurned =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    showDialog(
+        context: context,
+        builder: (_) {
+          return AlertDialog(
+            title: const Text('You want to end the game ?'),
+            content: Text(isScrrrenTurned
+                ? 'Click \'Left\' to confirm left exit, \'Cancel\' to go Back and \'Right\' to confirm right exit'
+                : 'Click \'Top\' to confirm top exit, \'Cancel\' to go Back and \'Bottom\' to confirm bottom exit'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  //mylog('OK $idx');
+                  Navigator.pop(context);
+                  bingoFunction(0);
+                },
+                child: Text(isScrrrenTurned ? 'Left' : 'Top'),
+              ),
+              TextButton(
+                onPressed: () {
+                  mylog('Cancel clicked');
+                  Navigator.pop(context);
+                },
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  //mylog('OK $idx');
+                  Navigator.pop(context);
+                  bingoFunction(1);
+                },
+                child: Text(isScrrrenTurned ? 'Right' : 'Bottom'),
+              ),
+            ],
+          );
+        });
   }
 }
