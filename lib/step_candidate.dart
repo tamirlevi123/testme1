@@ -1,10 +1,17 @@
+//import 'dart:typed_data';
+//import 'dart:ui';
+import 'package:image/image.dart' as pxl_img;
+
+//import 'package:flutter/material.dart';
+
 class StepCandidate {
   final int id;
   final String title;
   final String imageurl;
+  pxl_img.Image? imgBytes;
 
   Map<String, dynamic> toJson() =>
-      {'id': id, 'title': title, 'imageurl': imageurl};
+      {'id': id, 'title': title, 'imageurl': imageurl, 'imgBytes': imgBytes};
 
   @override
   String toString() {
@@ -13,7 +20,10 @@ class StepCandidate {
   }
 
   StepCandidate(
-      {required this.id, required this.title, required this.imageurl});
+      {required this.id,
+      required this.title,
+      required this.imageurl,
+      this.imgBytes});
 
   factory StepCandidate.fromJson(Map<String, dynamic> data) {
     // ! there's a problem with this code (see below)
@@ -21,7 +31,10 @@ class StepCandidate {
     final title = data['title'];
     final imageurl = data['image_url'].toString().replaceFirst("https", "http");
 
-    return StepCandidate(id: id, title: title, imageurl: imageurl);
+    //final imgBytes = Image.from
+
+    return StepCandidate(
+        imgBytes: null, id: id, title: title, imageurl: imageurl);
   }
 }
 

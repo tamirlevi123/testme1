@@ -39,7 +39,14 @@ dependencies:
   flutter_gif: any
   audioplayers: any
   extended_image: ^8.0.2
-  transparent_image_button: ^1.0.0
+  ffmpeg_kit_flutter: 6.0.3
+  image: ^4.1.7
+  video_player: ^2.7.2
+  path_provider: ^2.1.2
+  flutter_image_converter: ^0.3.2
+  path:
+  flutter_cache_manager: ^3.3.1
+  screen_state: ^3.0.1
 
 dev_dependencies:
   flutter_test:
