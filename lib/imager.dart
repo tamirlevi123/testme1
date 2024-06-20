@@ -42,9 +42,12 @@ class Imager extends StatefulWidget {
 }
 
 class _ImagerState extends State<Imager> with TickerProviderStateMixin {
+  late FlutterGifController controller;
+
   @override
   void initState() {
     super.initState();
+    controller = FlutterGifController(vsync: this);
   }
 
   @override
@@ -54,13 +57,18 @@ class _ImagerState extends State<Imager> with TickerProviderStateMixin {
   }
 
   @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    FlutterGifController controller = FlutterGifController(vsync: this);
     if (widget.showCoins) {
       controller.repeat(
           min: 0, max: 4, period: const Duration(milliseconds: 1000));
       Timer(const Duration(seconds: 2), () {
-        controller.stop();
+        //controller.stop();
       });
     }
     return Expanded(

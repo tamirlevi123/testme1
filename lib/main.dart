@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 //import 'dart:html';
 import 'dart:io';
+import 'dart:math';
 import 'dart:ui';
 //import 'dart:typed_data';
 //import 'dart:typed_data';
@@ -10,6 +11,7 @@ import 'dart:ui';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter/return_code.dart';
+import 'package:flutter/foundation.dart';
 //import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 //import 'package:flutter/services.dart';
@@ -19,11 +21,13 @@ import 'package:flutter/material.dart';
 import 'package:testme1/imager.dart';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
+import 'package:testme1/small_imager.dart';
 import 'package:testme1/step_candidate.dart';
 import 'package:image/image.dart' as pxl_img;
 import 'package:path_provider/path_provider.dart';
 //import 'package:video_player/video_player.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:testme1/videoPlayerWidget.dart';
 import 'package:video_player/video_player.dart';
 import 'package:screen_state/screen_state.dart';
 
@@ -84,6 +88,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   final Ticker _ticker = Ticker((elapsed) {});
   List<StepCandidate> _toShow = List.empty();
   List<StepCandidate> _toBack = List.empty();
+  List listForStats = [];
   String uuid = "";
   String gameId = "";
   int stepId = -1;
@@ -103,9 +108,17 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   bool started = false;
   List<ScreenStateEventEntry> _log = [];
 
+  String last_game_time = "";
+  int p25_num_steps = -1, p50_num_steps = -1, p75_num_steps = -1;
+  int num_of_games = -1,
+      num_of_games_with_steps_above = -1,
+      num_of_games_with_steps_below = -1;
+
   @override
   void initState() {
     super.initState();
+    _pageViewController = PageController();
+    _tabController = TabController(length: 3, vsync: this);
     startListening();
   }
 
@@ -217,6 +230,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
       tempPrev = tempNext;
     }
+
     String outputFile = '$dirName/out9.mp4';
     File outFile = File(outputFile);
     if (outFile.existsSync()) outFile.deleteSync();
@@ -240,6 +254,15 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     });
 
     mylog("After");
+
+    Future.delayed(const Duration(milliseconds: 2500), () {
+      setState(() {
+        borderUp0 = borderUp1 = false;
+        playVideo0 = false;
+        playVideo1 = false;
+        opacity0 = opacity1 = 1.0;
+      });
+    });
   }
 
   Future<void> deletePngFiles() async {
@@ -277,6 +300,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     textController.dispose();
     _ticker.dispose();
     _controller.dispose();
+    _pageViewController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -412,6 +437,41 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     final parsedJson = jsonDecode(response.body);
     mylog(parsedJson.toString());
     var listToVideo = parsedJson['images_path'];
+
+    //loadImage(listToVideo);
+
+    var statistics = parsedJson['image_statistics'];
+    if (statistics != null && statistics['last_game_time'] != null) {
+      last_game_time = statistics['last_game_time'];
+    }
+    if (statistics != null && statistics['p25_num_steps'] != null) {
+      p25_num_steps = statistics['p25_num_steps'];
+    }
+    if (statistics != null && statistics['p50_num_steps'] != null) {
+      p50_num_steps = statistics['p50_num_steps'];
+    }
+    if (statistics != null && statistics['p75_num_steps'] != null) {
+      p75_num_steps = statistics['p75_num_steps'];
+    }
+    if (statistics != null && statistics['num_of_games'] != null) {
+      num_of_games = statistics['num_of_games'];
+    }
+    if (statistics != null && statistics['last_game_time'] != null) {
+      last_game_time = statistics['last_game_time'];
+    }
+    if (statistics != null &&
+        statistics['num_of_games_with_steps_above'] != null) {
+      num_of_games_with_steps_above =
+          statistics['num_of_games_with_steps_above'];
+    }
+    if (statistics != null && statistics['last_game_time'] != null) {
+      num_of_games_with_steps_below =
+          statistics['num_of_games_with_steps_below'];
+    }
+
+    // part 2
+    listForStats = parsedJson['steps_info'];
+
 /*
     setState(() {
       borderUp0 = borderUp1 = false;
@@ -420,18 +480,11 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       opacity0 = opacity1 = 1.0;
     });
 */
-    await loadImage(listToVideo);
+    loadImage(listToVideo);
     mylog('finished loadImage(idx=$idx)');
 
-    var timetowait = 1500 + 200 * listToVideo.length;
-    mylog('timetowait=$timetowait');
-    Future.delayed(const Duration(milliseconds: 2500), () {
-      setState(() {
-        borderUp0 = borderUp1 = false;
-        playVideo0 = idx == 1;
-        playVideo1 = idx == 0;
-        opacity0 = opacity1 = 1.0;
-      });
+    setState(() {
+      showEndStatistics = true;
     });
   }
 
@@ -441,10 +494,6 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     developer.log("Clicked $idx");
     final brightness = PlatformDispatcher.instance.platformBrightness;
     mylog("brightness=$brightness");
-    if (brightness == Brightness.dark) {
-      mylog("Ignoring first click on dark");
-      return;
-    }
     setState(() {
       borderUp0 = idx == 0;
       borderUp1 = idx == 1;
@@ -592,12 +641,168 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         });
   }
 
+  late PageController _pageViewController;
+  late TabController _tabController;
+  int _currentPageIndex = 0;
+
   bool isSababa = true;
+  bool showEndStatistics = false;
   @override
   Widget build(BuildContext context) {
     developer.log("main build started");
     bool isScrrrenTurned =
         MediaQuery.of(context).orientation == Orientation.landscape;
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
+
+    if (showEndStatistics) {
+      final TextTheme textTheme = Theme.of(context).textTheme;
+      return Material(
+          child: SafeArea(
+              child: Theme(
+                  data: ThemeData(
+                    canvasColor: Colors.red,
+                  ),
+                  child: Stack(
+                    alignment: Alignment.bottomCenter,
+                    children: <Widget>[
+                      PageView(
+                        /// [PageView.scrollDirection] defaults to [Axis.horizontal].
+                        /// Use [Axis.vertical] to scroll vertically.
+                        controller: _pageViewController,
+                        onPageChanged: _handlePageViewChanged,
+                        children: <Widget>[
+                          Container(
+                            color: Colors.grey,
+                            child: Center(
+                              child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: <Widget>[
+                                    Text(
+                                      'Steps in game:$stepId',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                          fontSize: 30,
+                                          fontWeight: FontWeight.w400),
+                                    ),
+                                    Text(
+                                      'last_game_time:$last_game_time',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                          fontSize: 30,
+                                          fontWeight: FontWeight.w400),
+                                    ),
+                                    Text(
+                                      'p25_num_steps:$p25_num_steps',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                          fontSize: 30,
+                                          fontWeight: FontWeight.w400),
+                                    ),
+                                    Text(
+                                      'p50_num_steps:$p50_num_steps',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                          fontSize: 30,
+                                          fontWeight: FontWeight.w400),
+                                    ),
+                                    Text(
+                                      'p75_num_steps:$p75_num_steps',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                          fontSize: 30,
+                                          fontWeight: FontWeight.w400),
+                                    ),
+                                    Text(
+                                      'num_of_games:$num_of_games',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                          fontSize: 30,
+                                          fontWeight: FontWeight.w400),
+                                    ),
+                                    Text(
+                                      'num_of_games_with_steps_above:$num_of_games_with_steps_above',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                          fontSize: 30,
+                                          fontWeight: FontWeight.w400),
+                                    ),
+                                    Text(
+                                      'num_of_games_with_steps_below:$num_of_games_with_steps_below',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                          fontSize: 30,
+                                          fontWeight: FontWeight.w400),
+                                    ),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        minimumSize: Size.zero, // Set this
+                                        padding:
+                                            const EdgeInsetsDirectional.all(
+                                                2.0), // and this
+                                      ),
+                                      onPressed: () {
+                                        _pageViewController.animateToPage(
+                                            duration:
+                                                const Duration(seconds: 1),
+                                            curve: Curves.linear,
+                                            1);
+                                        developer.log('Next screen 1 clicked');
+                                      },
+                                      child: const Text('Next screen'),
+                                    )
+                                  ]),
+                            ),
+                          ),
+                          Container(
+                              alignment: Alignment.topCenter,
+                              color: Colors.grey,
+                              child: Stack(children: [
+                                Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                          width:
+                                              min(screenWidth, screenHeight) /
+                                                  (isScrrrenTurned ? 1 : 3),
+                                          height:
+                                              min(screenWidth, screenHeight) /
+                                                  (isScrrrenTurned ? 1 : 3),
+                                          child: SmallImager(
+                                            id: _toShow[lastClicked].id,
+                                            title: _toShow[lastClicked].title,
+                                            imageSrc:
+                                                _toShow[lastClicked].imageurl,
+                                            borderColor: Colors.blueGrey,
+                                          ))
+                                    ]),
+                                SizedBox(
+                                    height: screenHeight - 100,
+                                    child: ListView(
+                                        shrinkWrap: true,
+                                        padding: const EdgeInsets.all(15.0),
+                                        children: getListOfSmallImagers(
+                                            listForStats)))
+                              ])),
+                          Center(
+                              child: Container(
+                                  color: Colors.green,
+                                  child: const VideoPlayerWidget(
+                                    alignment:
+                                        AlignmentDirectional.bottomCenter,
+                                    videoUrl: 'out9.mp4',
+                                  )))
+                        ],
+                      ),
+                      PageIndicator(
+                        tabController: _tabController,
+                        currentPageIndex: _currentPageIndex,
+                        onUpdateCurrentPageIndex: _updateCurrentPageIndex,
+                        isOnDesktopAndWeb: true,
+                      ),
+                    ],
+                  ))));
+    }
 
     mylog('playVideo0=$playVideo0, playVideo1 = $playVideo1');
     return isStartScreen
@@ -931,5 +1136,125 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
             ],
           );
         });
+  }
+
+  void _handlePageViewChanged(int currentPageIndex) {
+    _tabController.index = currentPageIndex;
+    setState(() {
+      _currentPageIndex = currentPageIndex;
+    });
+  }
+
+  void _updateCurrentPageIndex(int index) {
+    _tabController.index = index;
+    _pageViewController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  getListOfSmallImagers(List listForStats) {
+    bool isScrrrenTurned =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    List<Row> outList = [];
+
+    for (var pair in listForStats) {
+      var fc = pair['first_candidate'];
+      var sc = pair['second_candidate'];
+      var selection = pair['selection_type'];
+      double dstFirst = pair['distance_to_first_candidate'];
+      double dstSecond = pair['distance_to_second_candidate'];
+      outList.add(Row(children: [
+        Text(dstFirst.toStringAsFixed(2)),
+        SmallImager(
+            id: fc['id'],
+            title: fc['title'],
+            imageSrc: fc['image_url'],
+            borderColor: selection == 'first' ? Colors.green : Colors.black),
+        const Spacer(),
+        SmallImager(
+            id: sc['id'],
+            title: sc['title'],
+            imageSrc: sc['image_url'],
+            borderColor: selection == 'second' ? Colors.green : Colors.black),
+        Text(dstSecond.toStringAsFixed(2))
+      ]));
+    }
+    return outList;
+  }
+}
+
+/// Page indicator for desktop and web platforms.
+///
+/// On Desktop and Web, drag gesture for horizontal scrolling in a PageView is disabled by default.
+/// You can defined a custom scroll behavior to activate drag gestures,
+/// see https://docs.flutter.dev/release/breaking-changes/default-scroll-behavior-drag.
+///
+/// In this sample, we use a TabPageSelector to navigate between pages,
+/// in order to build natural behavior similar to other desktop applications.
+class PageIndicator extends StatelessWidget {
+  const PageIndicator({
+    super.key,
+    required this.tabController,
+    required this.currentPageIndex,
+    required this.onUpdateCurrentPageIndex,
+    required this.isOnDesktopAndWeb,
+  });
+
+  final int currentPageIndex;
+  final TabController tabController;
+  final void Function(int) onUpdateCurrentPageIndex;
+  final bool isOnDesktopAndWeb;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isOnDesktopAndWeb) {
+      return const SizedBox.shrink();
+    }
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          IconButton(
+            splashRadius: 16.0,
+            padding: EdgeInsets.zero,
+            onPressed: () {
+              if (currentPageIndex == 0) {
+                return;
+              }
+              onUpdateCurrentPageIndex(currentPageIndex - 1);
+            },
+            icon: const Icon(
+              Icons.arrow_left_rounded,
+              size: 32.0,
+            ),
+          ),
+          TabPageSelector(
+            controller: tabController,
+            color: colorScheme.surface,
+            selectedColor: colorScheme.primary,
+          ),
+          IconButton(
+            splashRadius: 16.0,
+            padding: EdgeInsets.zero,
+            onPressed: () {
+              if (currentPageIndex == 2) {
+                return;
+              }
+              onUpdateCurrentPageIndex(currentPageIndex + 1);
+            },
+            icon: const Icon(
+              Icons.arrow_right_rounded,
+              size: 32.0,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
